@@ -77,3 +77,16 @@ PLAYWRIGHT_MODULE=/path/to/playwright CHROMIUM_PATH=/path/to/chromium node scrip
 ```
 
 当前仍不含账号、云端同步、自动复习调度、导入导出；没有接入 AI API。
+
+## GitHub Pages 部署
+
+Vite base 为 `/ielts-knowledge-workspace/`。推送到 `main` 后，`.github/workflows/deploy.yml` 使用 Node.js 24、`npm ci`、TypeScript 检查和生产构建，将 `dist` 部署到 GitHub Pages。
+
+首次部署：
+
+1. 确认 GitHub 仓库为 Public（Settings → General → Danger Zone → Change repository visibility）。
+2. Settings → Pages → Build and deployment → Source 选择 **GitHub Actions**。
+3. Actions → Deploy to GitHub Pages → Run workflow → main → Run workflow。
+4. 等待 build、deploy 均成功，再访问 https://mushroomingqqqq.github.io/ielts-knowledge-workspace/ 。
+
+应用使用 hash 导航，例如 `/ielts-knowledge-workspace/#Reading`，刷新不会请求不存在的服务器子路由，不需要 404 重定向。GitHub Pages 上的 localStorage 与本地开发站点独立，初次访问为空数据是正常现象。
