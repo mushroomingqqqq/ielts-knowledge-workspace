@@ -1,3 +1,4 @@
+import type { SpeakingData } from './speaking';
 import type { WritingData } from './writing';
 import { pruneDiscovery, validDiscovery, discoveryPriority, type DiscoveryMatch, type DiscoveryProgress, type DiscoveryOrigin } from './discovery';
 import type { Note } from './model';
@@ -14,7 +15,7 @@ export const networkKinds:Record<NetworkKind,string>={exact:'完全同义（限�
 export type RelationNetwork={id:string;title:string;terms:string[];kind:NetworkKind;explanation:string;isDemo:boolean;createdAt:string;updatedAt:string};
 export type ReviewSession={mappingId:string;direction:'forward'|'reverse';mode:'random'|'forward'|'reverse';scope:string;dataset:Dataset;response:string;revealed:boolean;attemptId?:string};
 export type Dataset='全部'|'真实'|'DEMO';
-export type Workspace = {writing?:WritingData;discoveries:DiscoveryMatch[];discoveryProgress:DiscoveryProgress[];networks:RelationNetwork[];reviewSession?:ReviewSession|null;version:2;notes:Note[];articles:Article[];mappings:Mapping[];links:VocabularyLink[];attempts:Attempt[]};
+export type Workspace = {speaking?:SpeakingData;writing?:WritingData;discoveries:DiscoveryMatch[];discoveryProgress:DiscoveryProgress[];networks:RelationNetwork[];reviewSession?:ReviewSession|null;version:2;notes:Note[];articles:Article[];mappings:Mapping[];links:VocabularyLink[];attempts:Attempt[]};
 export const emptyWorkspace = ():Workspace=>({version:2,discoveries:[],discoveryProgress:[],networks:[],reviewSession:null,notes:[],articles:[],mappings:[],links:[],attempts:[]});
 export function articleStatus(s:Workspace,id:string):string {
  const items=[...s.notes.filter(n=>n.articleId===id),...s.mappings.filter(m=>m.articleId===id)];
@@ -22,6 +23,7 @@ export function articleStatus(s:Workspace,id:string):string {
 }
 export function cleanRemoved(s:Workspace,noteIds:string[],mappingIds:string[]=[]):Workspace {
  const removedNotes=new Set(noteIds);
+ if(s.speaking)s={...s,speaking:{...s.speaking,storyLinks:s.speaking.storyLinks.filter(l=>!removedNotes.has(l.storyId))}};
  const removedMappings=new Set([...mappingIds,...s.mappings.filter(m=>removedNotes.has(m.questionId)).map(m=>m.id)]);
  return pruneDiscovery({...s,reviewSession:s.reviewSession&&removedMappings.has(s.reviewSession.mappingId)?null:s.reviewSession,notes:s.notes.filter(n=>!removedNotes.has(n.id)).map(n=>({...n,storyId:n.storyId&&removedNotes.has(n.storyId)?undefined:n.storyId,sourceTitle:n.sourceId&&removedNotes.has(n.sourceId)?s.notes.find(q=>q.id===n.sourceId)?.title||n.sourceTitle:n.sourceTitle,sourceId:n.sourceId&&removedNotes.has(n.sourceId)?undefined:n.sourceId})),mappings:s.mappings.filter(m=>!removedMappings.has(m.id)),links:s.links.filter(l=>!removedMappings.has(l.mappingId)&&!removedNotes.has(l.vocabularyId)),attempts:s.attempts.filter(a=>!removedMappings.has(a.mappingId))},removedNotes,removedMappings);
 }

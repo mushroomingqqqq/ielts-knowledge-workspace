@@ -1,3 +1,4 @@
+import { speakingBank, validateSpeakingInput, speakingMessages } from './speaking-core.mjs';
 import http from 'node:http';
 import { pathToFileURL } from 'node:url';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
@@ -39,9 +40,9 @@ export function createWritingServer({fetchImpl=fetch,readMaterials=materials,sec
    if(!key&&!s.key)return send(res,400,{error:'请填写你自己的 API Key。'});
    sessions.replace(s,{key:key||s.key,provider,model});return send(res,200,sessions.state(s));
   }
-  const isTest=path==='/api/ai/test'&&req.method==='POST';const isFeedback=path==='/api/writing/feedback'&&req.method==='POST';if(!isTest&&!isFeedback)return send(res,404,{error:'接口不存在。'});
+  const isTest=path==='/api/ai/test'&&req.method==='POST';const isSpeaking=path==='/api/speaking/feedback'&&req.method==='POST';const isFeedback=(path==='/api/writing/feedback'||isSpeaking)&&req.method==='POST';if(!isTest&&!isFeedback)return send(res,404,{error:'接口不存在。'});
   if(!s.key)return send(res,428,{error:'请先在 AI Settings 配置你自己的 API Key。',code:'AI_CONFIG_REQUIRED'});
-  let input;if(isFeedback){try{input=await jsonBody(req);}catch(e){return send(res,e.status||400,{error:e.error||'请求无效。'});}if(!validateInput(input))return send(res,400,{error:'请填写完整中文框架；英文或全文检查还需要对应稿件。'});}
+  let input;if(isFeedback){try{input=await jsonBody(req);}catch(e){return send(res,e.status||400,{error:e.error||'请求无效。'});}if(!(isSpeaking?validateSpeakingInput(input,speakingBank()):validateInput(input)))return send(res,400,{error:isSpeaking?'请先填写完整的本人回答或 Part 3 框架，并检查题库版本；不完整原题不进入 AI 分析。':'请填写完整中文框架；英文或全文检查还需要对应稿件。'});}
   if(busy>=4||s.controller)return send(res,429,{error:'已有检查正在进行，请稍后重试。'});
   if(Date.now()-(recent.get(s.id)||0)<minInterval)return send(res,429,{error:'请求较频繁，请稍后重试。'});
   // Bound metadata as well as secret sessions.
@@ -49,16 +50,16 @@ export function createWritingServer({fetchImpl=fetch,readMaterials=materials,sec
   const generation=s.generation;const controller=new AbortController();s.controller=controller;const timer=setTimeout(()=>controller.abort(),isTest?15000:60000);
   try{
    const provider=providers[s.provider];
-   const refs=isFeedback?retrieve(readMaterials(),JSON.stringify(input.fields),input.mode):[];
-   const response=isTest?await provider.test({key:s.key,model:s.model,fetchImpl,signal:controller.signal}):await provider.feedback({key:s.key,model:s.model,fetchImpl,signal:controller.signal,messages:buildMessages(input,refs),schema:feedbackSchema});
+   const refs=isFeedback&&!isSpeaking?retrieve(readMaterials(),JSON.stringify(input.fields),input.mode):[];
+   const response=isTest?await provider.test({key:s.key,model:s.model,fetchImpl,signal:controller.signal}):await provider.feedback({key:s.key,model:s.model,fetchImpl,signal:controller.signal,messages:isSpeaking?speakingMessages(input,speakingBank()):buildMessages(input,refs),schema:feedbackSchema});
    if(generation!==s.generation||!sessions.find(req,false)?.key)return send(res,409,{error:'AI 配置已修改或清除，请重新发起检查。'});
    if(!response.ok){if(response.status===401||response.status===403){s.connection='failed';s.testedAt=null;}return send(res,response.status===429?429:response.status===401?401:502,{error:providerError(response.status)});}
    if(isTest){s.connection='connected';s.testedAt=new Date().toISOString();return send(res,200,{...sessions.state(s),message:'密钥与所选模型可访问。未生成文本；实际检查仍受账户额度与速率限制。'});}
    const result=await response.json();if(result.status!=='completed')throw Error('incomplete');
-   const content=result.output?.flatMap(x=>x.content||[]).filter(x=>x.type==='output_text').map(x=>x.text).join('');const feedback=JSON.parse(content||'null');if(!validFeedback(feedback))throw Error('invalid');if(input.mode==='logic')feedback.issues=feedback.issues.map(i=>({...i,suggestion:''}));
-   const student=Object.values(input.fields).join('\n')+(input.english||'')+(input.essay||'');if(feedback.issues.some(i=>i.quote&&!student.includes(i.quote)))throw Error('unanchored');
+   const content=result.output?.flatMap(x=>x.content||[]).filter(x=>x.type==='output_text').map(x=>x.text).join('');const feedback=JSON.parse(content||'null');if(!validFeedback(feedback))throw Error('invalid');if(input.mode==='logic'||isSpeaking&&input.phase==='logic')feedback.issues=feedback.issues.map(i=>({...i,suggestion:''}));
+   const student=Object.values(isSpeaking?input.response:input.fields).join('\n')+(input.english||'')+(input.essay||'');if(feedback.issues.some(i=>i.quote&&!student.includes(i.quote)))throw Error('unanchored');
    if(generation!==s.generation||!sessions.find(req,false)?.key)return send(res,409,{error:'会话已清除，结果未返回。'});
-   s.connection='connected';return send(res,200,{id:randomUUID(),provider:'OpenAI',model:s.model,at:new Date().toISOString(),responseId:result.id,mode:input.mode,feedback,references:refs.map(r=>({id:r.id,sources:r.sources})),...(input.mode==='english'?{expressions:refs.map(r=>({text:r.text,sources:r.sources}))}:{})});
+   s.connection='connected';return send(res,200,{id:randomUUID(),provider:'OpenAI',model:s.model,at:new Date().toISOString(),responseId:result.id,mode:isSpeaking?'speaking':input.mode,...(isSpeaking?{questionId:input.questionId,phase:input.phase}:{}),feedback,references:refs.map(r=>({id:r.id,sources:r.sources})),...(input.mode==='english'?{expressions:refs.map(r=>({text:r.text,sources:r.sources}))}:{})});
   }catch{return send(res,502,{error:controller.signal.aborted?'请求已取消或超时，未保存反馈。':'AI 未返回可验证的完整反馈，或网络暂不可用。未生成替代分析。'});}finally{clearTimeout(timer);if(s.controller===controller)s.controller=null;busy--;}
  }
  if(!staticDir)return send(res,404,{error:'页面不存在。'});

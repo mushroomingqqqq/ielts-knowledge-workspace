@@ -8,7 +8,7 @@ const assert = require('node:assert/strict');
  const errors=[];p.on('pageerror',e=>errors.push(e.message));
  await p.goto(process.env.APP_URL || 'http://127.0.0.1:5173/ielts-knowledge-workspace/');
  const data = () => p.evaluate(() => JSON.parse(localStorage.getItem('ielts-workspace.data.v2')).notes);
- const nav = async name => {await p.locator('nav').getByRole('button',{name,exact:true}).click();if(name==='Writing')await p.getByRole('button',{name:'已有写作笔记',exact:true}).click();};
+ const nav = async name => {await p.locator('nav').getByRole('button',{name,exact:true}).click();if(name==='Writing')await p.getByRole('button',{name:'已有写作笔记',exact:true}).click();if(name==='Speaking')await p.getByRole('button',{name:'已有口语笔记',exact:true}).click();};
  const add = async () => p.getByRole('button',{name:'添加记录',exact:true}).click();
  const fill = async (label,value) => p.locator('dialog').getByLabel(label,{exact:false}).fill(value);
  const save = async () => {await p.locator('dialog').getByRole('button',{name:'保存记录'}).click();await p.locator('dialog').waitFor({state:'detached'});};

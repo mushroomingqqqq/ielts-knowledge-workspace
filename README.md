@@ -147,3 +147,9 @@ Writing 支持无需自动反馈服务的完整七步训练与人工核对、逐
 ### BYOK 与独立 Preview
 
 AI Settings 支持服务端临时会话、用户自带 Key、模型选择、连接测试、替换与清除。Writing 检查只使用当前用户配置。完整 Node 24 + Docker / Render 预览部署见 [Preview BYOK](docs/preview-byok.md)；资料复查见 [material-audit.md](docs/material-audit.md)。本轮仅面向独立 Preview 分支，不覆盖 main 或正式 Pages。
+
+### Speaking · 2026 年 9–12 月题库
+
+已导入本轮 66 页 PDF 的 460 条原文记录：Part 1 200、Part 2 50、Part 3 210。保留分类、题干、现有译文、提示词、原参考答案及物理/印刷页码；缺失内容不生成。Speaking 支持话题抽题、个人回答与版本、收藏/错题/复习、P2 准备和口述计时、多题共用故事、P3 中文到英文训练，并复用 AI Settings 的用户 BYOK 会话。原有口语笔记保留。
+
+导入方法、源文异常、数据关系及测试见 [Speaking 导入与训练](docs/speaking-import.md)。当前 AI 只检查录入的文字稿，不录音、不自动转写、不预测口语分数。
