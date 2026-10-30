@@ -1,28 +1,57 @@
+import { emptyWriting, validWriting, type WritingData } from '../lib/writing';
+import { disclose, applyDiscoveryHint, establishMatch, progressFor, setProgress, removeDiscovery } from '../lib/discoveryActions';
+import type { Anchor, DiscoveryDraft } from '../lib/discovery';
 import { useState } from 'react';
 import { subjects, type Note } from '../lib/model';
-const KEY = 'ielts-workspace.notes.v1';
-function load(): {notes: Note[]; error: string} {
+import { articleStatus, cleanRemoved, emptyWorkspace, validWorkspace, type Article, type Mapping, type Workspace, type Attempt, type RelationNetwork, type ReviewSession, isDemoArticle, networkKey } from '../lib/reading';
+const KEY='ielts-workspace.data.v2';
+const LEGACY='ielts-workspace.notes.v1';
+function load():{data:Workspace;error:string} {
  try {
-  const raw = localStorage.getItem(KEY);
-  if (!raw) return {notes:[],error:''};
-  const data: unknown = JSON.parse(raw);
-  if (!Array.isArray(data) || !data.every(n => n && typeof n.id === 'string' && typeof n.title === 'string' && typeof n.content === 'string' && subjects.includes(n.subject))) throw Error();
-  const ids = new Set(data.map(n => n.id));
-  if (ids.size !== data.length) throw Error();
-  const normalized: Note[] = data.map(n => ({...n, fields:n.fields && typeof n.fields === 'object' ? Object.fromEntries(Object.entries(n.fields).filter(([,v]) => typeof v === 'string')) : {},category:typeof n.category === 'string' ? n.category : '',answer:typeof n.answer === 'string' ? n.answer : '',correct:typeof n.correct === 'string' ? n.correct : '',status:n.status === '已掌握' ? '已掌握' : '待复习',storyId:data.some(s => s.id === n.storyId && s.subject === 'Speaking' && s.recordType === 'story') ? n.storyId : undefined,sourceId:data.some(s => s.id === n.sourceId && ['Listening','Reading'].includes(s.subject)) ? n.sourceId : undefined}));
-  return {notes:normalized,error:''};
- } catch { return {notes:[],error:'本地数据无法读取。为避免覆盖，已暂停保存；请先备份或恢复浏览器中的 ielts-workspace.notes.v1 数据后刷新。'}; }
+  const current=localStorage.getItem(KEY);
+  if(current){const data=JSON.parse(current) as Workspace;if(data.writing&&!validWriting(data.writing))throw Error();data.discoveries??=[];data.discoveryProgress??=[];data.networks??=[];data.reviewSession??=null;if(data.version!==2||!Array.isArray(data.notes)||!Array.isArray(data.articles)||!Array.isArray(data.mappings)||!Array.isArray(data.links)||!Array.isArray(data.attempts)||!validWorkspace(data))throw Error();return {data,error:''};}
+  const data=emptyWorkspace();const raw=localStorage.getItem(LEGACY);
+  if(raw){const old:unknown=JSON.parse(raw);if(!Array.isArray(old)||!old.every(n=>n&&typeof n.id==='string'&&typeof n.title==='string'&&typeof n.content==='string'&&subjects.includes(n.subject)))throw Error();
+   data.notes=old.map(n=>({...n,fields:n.fields&&typeof n.fields==='object'?Object.fromEntries(Object.entries(n.fields).filter(([,v])=>typeof v==='string')):{},category:typeof n.category==='string'?n.category:'',answer:typeof n.answer==='string'?n.answer:'',correct:typeof n.correct==='string'?n.correct:'',createdAt:typeof n.createdAt==='string'?n.createdAt:new Date().toISOString(),updatedAt:typeof n.updatedAt==='string'?n.updatedAt:new Date().toISOString(),status:n.status==='已掌握'?'已掌握':'待复习',sourceId:old.some(t=>t.id===n.sourceId&&['Listening','Reading'].includes(t.subject))?n.sourceId:undefined,storyId:old.some(t=>t.id===n.storyId&&t.recordType==='story')?n.storyId:undefined}));
+   const now=new Date().toISOString();
+   for(const title of new Set(data.notes.filter(n=>n.subject==='Reading').map(n=>n.title))){const id=crypto.randomUUID();data.articles.push({id,title,practiceDate:'',total:null,correct:null,originalText:'',translation:'',createdAt:now,updatedAt:now});data.notes=data.notes.map(n=>n.subject==='Reading'&&n.title===title?{...n,articleId:id}:n);}
+  }
+  if(!validWorkspace(data))throw Error();
+  localStorage.setItem(KEY,JSON.stringify(data)); // Persist generated article IDs once; keep the original v1 key as backup.
+  return {data,error:''};
+ } catch{return {data:emptyWorkspace(),error:'本地资料无法读取或迁移，已暂停写入以保护原数据。请备份浏览器存储后恢复数据并刷新。'};}
 }
-export function useNotes() {
- const [initial] = useState(load);
- const [error, setError] = useState(initial.error);
- const [notes, setNotes] = useState<Note[]>(initial.notes);
- function persist(next: Note[]) { if(initial.error) return false; try { localStorage.setItem(KEY, JSON.stringify(next)); setNotes(next); setError(''); return true; } catch { setError('保存失败：浏览器存储不可用或空间不足，请保留内容后重试。'); return false; } }
- return { notes, error, save: (note: Note) => {
-  // Only valid IDs may be persisted as relationships.
-  if(note.storyId && !notes.some(n => n.id === note.storyId && n.recordType === 'story' && n.subject === 'Speaking')) return false;
-  if(note.sourceId && !notes.some(n => n.id === note.sourceId && ['Listening','Reading'].includes(n.subject))) return false;
-  if(note.recordType !== 'story' && notes.some(n => n.storyId === note.id)) return false;
-  return persist([note, ...notes.filter(n => n.id !== note.id)]);
- }, remove: (id: string) => persist(notes.filter(n => n.id !== id).map(n => ({...n, storyId: n.storyId === id ? undefined : n.storyId, sourceId: n.sourceId === id ? undefined : n.sourceId}))) };
+export function useNotes(){
+ const [initial]=useState(load);const [data,setData]=useState(initial.data);const [error,setError]=useState(initial.error);
+ const commit=(next:Workspace)=>{if(initial.error)return false;if(!validWorkspace(next)){setError('关联校验失败，未保存。请检查文章、题目与替换关系。');return false;}try{localStorage.setItem(KEY,JSON.stringify(next));setData(next);setError('');return true;}catch{setError('保存失败：浏览器存储空间不足或不可用，请保留当前内容后重试。');return false;}};
+ const save=(input:Note)=>{
+  let next={...data};let note={...input};
+  if(note.subject==='Vocabulary'&&data.notes.some(n=>n.id!==note.id&&n.subject==='Vocabulary'&&n.title.trim().toLowerCase()===note.title.trim().toLowerCase())){setError('该词已存在，请编辑已有词汇或建立替换关联。');return false;}
+  if(note.recordType!=='story'&&data.notes.some(n=>n.storyId===note.id))return false;
+  if(note.subject==='Reading'&&!note.articleId){const matches=data.articles.filter(a=>a.title===note.title);if(matches.length>1){setError('该名称对应多个档案，请在 Reading 中进入指定文章后新增错题。');return false;}const article=matches[0];const now=new Date().toISOString();const created:Article=article||{id:crypto.randomUUID(),title:note.title,practiceDate:'',total:null,correct:null,originalText:'',translation:'',createdAt:now,updatedAt:now};if(!article)next.articles=[created,...data.articles];note.articleId=created.id;}
+  if(note.articleId){const a=next.articles.find(a=>a.id===note.articleId);if(!a)return false;note.title=a.title;}
+  return commit({...next,notes:[note,...data.notes.filter(n=>n.id!==note.id)]});
+ };
+ const saveArticle=(article:Article)=>{const previous=data.articles.find(a=>a.id===article.id);if(previous&&data.mappings.some(m=>m.articleId===article.id&&m.networkId)&&isDemoArticle(previous)!==isDemoArticle(article)){setError('含网络关联的文章不能直接更改 DEMO 类型，请先解除关联。');return false;}if(!article.title.trim()||(article.total!==null&&(!Number.isInteger(article.total)||article.total<1))||(article.correct!==null&&(article.total===null||!Number.isInteger(article.correct)||article.correct<0||article.correct>article.total)))return false;return commit({...data,reviewSession:previous&&isDemoArticle(previous)!==isDemoArticle(article)&&data.mappings.some(m=>m.articleId===article.id&&m.id===data.reviewSession?.mappingId)?null:data.reviewSession,articles:[article,...data.articles.filter(a=>a.id!==article.id)],notes:data.notes.map(n=>n.articleId===article.id?{...n,title:article.title}:n.originArticleId===article.id?{...n,originArticleTitle:article.title}:n)});};
+ const saveMapping=(mapping:Mapping,vocabularyIds:string[],network?:RelationNetwork)=>{if(mapping.isStandard===false&&data.discoveries.some(d=>d.referenceId===mapping.id)){setError('已有学习记录引用此标准，请先删除对应匹配记录后再取消标准标记。');return false;}if(!mapping.sentence?.trim()||!mapping.rationale?.trim()||!mapping.meaning.trim()||!mapping.chain.trim()||!mapping.context.trim()){setError('请补全完整原句、语境、中文解释与替换逻辑。');return false;}if(network&&data.networks.some(n=>networkKey(n)===networkKey(network))){setError('同类别、同表达的网络已存在，请选择已有网络。');return false;}if(data.mappings.some(m=>m.id!==mapping.id&&m.questionId===mapping.questionId&&m.relationship===mapping.relationship&&m.questionExpression.trim().toLowerCase()===mapping.questionExpression.trim().toLowerCase()&&m.originalExpression.trim().toLowerCase()===mapping.originalExpression.trim().toLowerCase()&&m.paragraph.trim().toLowerCase()===mapping.paragraph.trim().toLowerCase()&&(m.sentence||'').trim().toLowerCase()===(mapping.sentence||'').trim().toLowerCase())){setError('该题已有相同替换，请编辑已有记录。');return false;}const discovery=mapping.discoveryId?data.discoveries.find(d=>d.id===mapping.discoveryId):undefined;if(mapping.discoveryId&&!discovery)return false;if(discovery)mapping={...mapping,discoveryRecognition:discovery.origin};let next:Workspace={...data,discoveryProgress:mapping.isStandard?data.discoveryProgress:data.discoveryProgress.map(p=>({...p,exposures:p.exposures.filter(e=>e.referenceId!==mapping.id)})),discoveries:discovery?data.discoveries.map(d=>d.id===discovery.id?{...d,mappingId:mapping.id,verdict:d.verdict==='confirmed'?'confirmed':'custom-confirmed',history:d.verdict==='confirmed'||d.verdict==='custom-confirmed'?d.history:[...d.history,{at:new Date().toISOString(),verdict:'custom-confirmed',origin:'unverified',questionText:d.questionAnchor.text,originalText:d.originalAnchor.text}],updatedAt:new Date().toISOString()}:d):data.discoveries,networks:network?[network,...data.networks.filter(n=>n.id!==network.id)]:data.networks,mappings:[mapping,...data.mappings.filter(m=>m.id!==mapping.id)],links:[...data.links.filter(l=>l.mappingId!==mapping.id),...new Set(vocabularyIds)].map(l=>typeof l==='string'?{mappingId:mapping.id,vocabularyId:l}:l)};if(mapping.isStandard)next=disclose(next,[mapping.id],3,false);return commit(next);};
+ const linkVocabulary=(vocabularyId:string,mappingIds:string[])=>commit({...data,links:[...data.links.filter(l=>l.vocabularyId!==vocabularyId),...new Set(mappingIds)].map(l=>typeof l==='string'?{vocabularyId,mappingId:l}:l)});
+ const addVocabulary=(note:Note,mappingIds:string[])=>{
+  if(data.notes.some(n=>n.subject==='Vocabulary'&&n.title.trim().toLowerCase()===note.title.trim().toLowerCase())){setError('该词已存在，请选择已有词汇建立关联，避免重复。');return false;}
+  return commit({...data,notes:[note,...data.notes],links:[...data.links,...new Set(mappingIds)].map(l=>typeof l==='string'?{vocabularyId:note.id,mappingId:l}:l)});
+ };
+ const recordAttempt=(attempt:Attempt)=>{if(data.mappings.find(m=>m.id===attempt.mappingId)?.needsVerification)return false;const history=[...data.attempts.filter(a=>a.mappingId===attempt.mappingId&&a.at>(data.mappings.find(m=>m.id===attempt.mappingId)?.learningResetAt||'')),attempt];const success=history.slice(-2).length===2&&history.slice(-2).every(a=>a.success);return commit({...data,attempts:[...data.attempts,attempt],mappings:data.mappings.map(m=>m.id===attempt.mappingId?{...m,status:!attempt.success?'待复习':success?'已掌握':m.status,updatedAt:attempt.at}:m),reviewSession:data.reviewSession?.mappingId===attempt.mappingId?{...data.reviewSession,attemptId:attempt.id}:data.reviewSession});};
+ return {data,writing:data.writing||emptyWriting(),saveWriting:(writing:WritingData)=>validWriting(writing)&&commit({...data,writing}),notes:data.notes,error,save,remove:(id:string)=>commit(cleanRemoved(data,[id])),saveArticle,
+ removeArticle:(id:string)=>{const next=cleanRemoved(data,data.notes.filter(n=>n.articleId===id).map(n=>n.id),data.mappings.filter(m=>m.articleId===id).map(m=>m.id));return commit({...next,articles:next.articles.filter(a=>a.id!==id),discoveryProgress:next.discoveryProgress.filter(p=>p.articleId!==id),notes:next.notes.map(n=>n.originArticleId===id?{...n,originArticleId:undefined}:n)});},
+ saveNetwork:(network:RelationNetwork)=>{if(network.terms.length<2||!network.title.trim()||data.networks.some(n=>n.id!==network.id&&networkKey(n)===networkKey(network)))return false;return commit({...data,networks:[network,...data.networks.filter(n=>n.id!==network.id)]});},
+ removeNetwork:(id:string)=>commit({...data,networks:data.networks.filter(n=>n.id!==id),mappings:data.mappings.map(m=>m.networkId===id?{...m,networkId:undefined}:m)}),
+ saveReviewSession:(session:ReviewSession|null)=>{const next=session?.revealed?disclose(data,[session.mappingId],3,false):data;return commit({...next,reviewSession:session});},
+ disclose:(ids:string[],level:1|2|3,queue=true)=>{const next=disclose(data,ids,level,queue);return next===data||commit(next);},
+ useDiscoveryHint:(referenceId:string,level:1|2|3)=>{const next=applyDiscoveryHint(data,referenceId,level);return next===data||commit(next);},
+ saveDiscoveryDraft:(articleId:string,questionId:string,draft?:Partial<DiscoveryDraft>)=>{const p=progressFor(data,articleId);const previous=p.drafts.find(d=>d.questionId===questionId)||{questionId};return commit(setProgress(data,{...p,activeQuestionId:questionId,drafts:draft?[...p.drafts.filter(d=>d.questionId!==questionId),{...previous,...draft,questionId}]:p.drafts}));},
+ establishDiscovery:(input:{articleId:string;questionId:string;questionAnchor:Anchor;originalAnchor:Anchor;id?:string})=>{const next=establishMatch(data,input);if(!next){setError('原文或题目已改变，请重新选择两侧文字。');return false;}return next===data||commit(next);},
+ removeDiscovery:(id:string)=>commit(removeDiscovery(data,id)),
+ finishDiscovery:(articleId:string)=>{const next=disclose(data,data.mappings.filter(m=>m.articleId===articleId&&m.isStandard).map(m=>m.id),3);return commit(setProgress(next,{...progressFor(next,articleId),completedAt:new Date().toISOString()}));},
+ saveMapping,removeMapping:(id:string)=>commit(cleanRemoved(data,[],[id])),linkVocabulary,addVocabulary,recordAttempt,
+ setMappingStatus:(id:string,status:Mapping['status'])=>commit({...data,mappings:data.mappings.map(m=>m.id===id?{...m,status,updatedAt:new Date().toISOString()}:m)}),articleStatus:(id:string)=>articleStatus(data,id)};
 }
+export type Store=ReturnType<typeof useNotes>;

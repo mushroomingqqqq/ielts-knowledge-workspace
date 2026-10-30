@@ -1,0 +1,7 @@
+import type { ReactNode } from 'react';
+import { BookOpen, Files, GitBranch, RotateCcw } from 'lucide-react';
+import { readingMetrics, isDemoArticle, type Dataset, type Workspace } from '../../lib/reading';
+export function StudySummary({data,dataset}:{data:Workspace;dataset:Dataset}){const m=readingMetrics(data,dataset);return <div className="study-summary" title={`统计范围：${dataset}；${data.articles.filter(isDemoArticle).length} 篇 DEMO。已整理错题不代表全部练习错题。`} aria-label="Reading 统一统计">{[{label:'文章档案',value:m.articles,icon:BookOpen},{label:'已整理错题',value:m.mistakes,icon:Files},{label:'替换记录',value:m.mappings,icon:GitBranch},{label:'待复习替换',value:m.pending,icon:RotateCcw}].map(item=><div key={item.label}><item.icon size={18}/><strong>{item.value}</strong><span>{item.label}</span></div>)}</div>}
+export function DatasetSelect({value,onChange}:{value:Dataset;onChange:(d:Dataset)=>void}){return <label>资料范围<select aria-label="资料范围" value={value} onChange={e=>onChange(e.target.value as Dataset)}><option value="全部">全部（含 DEMO）</option><option>真实</option><option>DEMO</option></select></label>}
+export function StudyTabs({items}:{items:{label:string;selected:boolean;action:()=>void}[]}){return <div className="study-tabs">{items.map(i=><button key={i.label} className={i.selected?'selected':''} onClick={i.action}>{i.label}</button>)}</div>}
+export function StudyToolbar({children}:{children:ReactNode}){return <div className="study-toolbar">{children}</div>}

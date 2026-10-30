@@ -1,0 +1,138 @@
+@import '@fontsource/ibm-plex-mono/latin-400.css';
+@import '@fontsource/ibm-plex-mono/latin-500.css';
+@import '@fontsource/ibm-plex-mono/latin-600.css';
+
+/* One type scale for the scrapbook UI. Paper, artwork and grid stay in scrapbook.css. */
+:root {
+  --font-display: 'Silkscreen', monospace;
+  --font-copy: 'IBM Plex Mono', 'PingFang SC', 'Microsoft YaHei', monospace;
+  --type-caption: 12px;
+  --type-label: 14px;
+  --type-body: 15px;
+  --type-nav: 18px;
+  --type-card: 20px;
+  --type-stat: 30px;
+  --weight-copy: 400;
+  --weight-emphasis: 500;
+  --weight-active: 600;
+  --leading-copy: 1.6;
+  --leading-label: 1.4;
+  --leading-heading: 1.25;
+  --tracking-copy: 0;
+  --text-primary: var(--ink);
+  --text-secondary: #796d70;
+  font-family: var(--font-copy);
+  font-size: var(--type-body);
+  line-height: var(--leading-copy);
+}
+
+/* Pixel identity is reserved for titles, not small operational text. */
+.brand > span:first-child, .hero-copy h1, .page-heading h1,
+.subject-paper h2, .scrap-title > span, .panel h2 {
+  font-family: var(--font-display);
+}
+.hero-copy h1 { line-height: 1.12; }
+.subject-paper h2, .scrap-title > span {
+  font-size: var(--type-card);
+  font-weight: var(--weight-copy);
+  line-height: var(--leading-heading);
+  letter-spacing: -.5px;
+}
+
+/* Reading and editing share the same clear, typewriter-inspired face. */
+.nav-item, .hero-copy p, .feed-button, .calendar-paper,
+.subject-tab, .subject-paper small, .pixel-progress b,
+.today-tasks label, .small-caption, .vocabulary-counts,
+.tiny-add, .scrap-mistakes > button, .scrap-tag, .scrap-empty,
+.streak-week span, .week-days, .week-days small, .check-in,
+.desk-tools, .desk-search, .page-heading p, .search input,
+.record-details, .record-heading, .note-main, .advanced-filters,
+.note-dialog label, .note-dialog input, .note-dialog textarea,
+.note-dialog select, .answer-content, .inner-view .empty-notes {
+  font-family: var(--font-copy);
+  letter-spacing: var(--tracking-copy);
+}
+.nav-item {
+  font-size: var(--type-nav);
+  font-weight: var(--weight-emphasis);
+  line-height: 1.35;
+}
+.nav-item.active { font-weight: var(--weight-active); }
+.nav-item b { font-size: var(--type-caption); }
+.hero-copy p { font-size: 17px; line-height: var(--leading-label); }
+.feed-button, .check-in, .scrap-empty button {
+  font-size: var(--type-label);
+  line-height: var(--leading-label);
+  font-weight: var(--weight-emphasis);
+}
+.file-label, .subject-tab, .eyebrow {
+  font-family: var(--font-copy);
+  font-size: 10px;
+  line-height: 1.1;
+  letter-spacing: .25px;
+  color: var(--text-secondary);
+}
+.subject-paper small, .small-caption {
+  font-size: var(--type-caption);
+  line-height: var(--leading-label);
+  color: var(--text-secondary);
+}
+.pixel-progress b {
+  font-size: var(--type-label);
+  line-height: 16px;
+  font-weight: var(--weight-emphasis);
+}
+.today-tasks label {
+  font-size: var(--type-body);
+  font-weight: var(--weight-emphasis);
+  line-height: 1.3;
+}
+.calendar-top strong { font-size: var(--type-nav); font-weight: var(--weight-active); }
+.calendar-grid { font-size: var(--type-label); line-height: var(--leading-heading); }
+.calendar-grid b { font-size: var(--type-caption); color: var(--text-secondary); }
+.vocabulary-counts span { font-size: var(--type-label); line-height: 1.2; }
+.vocabulary-counts strong {
+  font-size: var(--type-stat);
+  font-weight: var(--weight-emphasis);
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+.tiny-add { font-size: var(--type-caption); line-height: 1.3; }
+.scrap-mistakes > button, .scrap-empty {
+  font-size: var(--type-body);
+  line-height: var(--leading-copy);
+  color: var(--text-primary);
+}
+.scrap-tag, .scrap-mistakes time {
+  font-size: var(--type-caption);
+  line-height: var(--leading-label);
+}
+.scrap-mistakes time, .week-days small { color: var(--text-secondary); }
+.streak-week span { font-size: var(--type-caption); line-height: 1; }
+.week-days { font-size: var(--type-nav); line-height: 1.1; }
+.week-days small { font-size: var(--type-caption); line-height: var(--leading-label); }
+.desk-tools > span, .desk-tools > button, .desk-search {
+  font-size: var(--type-caption);
+  line-height: var(--leading-label);
+}
+.desk-tools > span { font-weight: var(--weight-emphasis); }
+
+/* Apply the same scale to existing learning pages and forms. */
+.page-heading p, .record-details, .record-heading strong, .note-title,
+.answer-content, .note-dialog input, .note-dialog textarea, .note-dialog select {
+  font-size: var(--type-body);
+  line-height: var(--leading-copy);
+}
+.record-heading small, .note-title small, .note-main time, .tag,
+.record-details b, .note-dialog label, .advanced-filters label,
+.primary, .secondary, .danger, .empty-notes p, .empty-notes > span {
+  font-size: var(--type-caption);
+  line-height: var(--leading-label);
+}
+.note-title small, .note-main time, .record-heading small,
+.record-details b, .note-dialog label, .advanced-filters label,
+.empty-notes > span { color: var(--text-secondary); }
+
+@media (max-width: 1250px) {
+  :root { --type-nav: 17px; --type-card: 18px; }
+}

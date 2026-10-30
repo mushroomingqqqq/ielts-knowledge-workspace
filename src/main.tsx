@@ -1,5 +1,12 @@
+import './ai-settings.css';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './styles.css';
+import './scrapbook.css';
+import './typography.css';
+import './reading.css';
+import './study-system.css';
+import './discovery.css';
+import './writing.css';
 ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><App /></React.StrictMode>);

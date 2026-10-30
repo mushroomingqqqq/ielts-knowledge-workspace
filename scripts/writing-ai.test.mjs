@@ -1,0 +1,9 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { retrieve, validateInput, buildMessages, logicKeys } from '../server/writing-core.mjs';
+const fields=Object.fromEntries(logicKeys.map(k=>[k,'学生自己写的教育论证']));const input={mode:'logic',prompt:'To what extent do you agree or disagree?',fields};
+const refs=[{id:'a',kind:'logic',text:'教育提高就业能力，获得工作后减少重复犯罪。',sources:[{name:'论点库1',page:3}]},{id:'b',kind:'english',text:'教育提高就业能力 Education improves employability.',sources:[{name:'浓缩版',page:2}]},{id:'c',kind:'logic',text:'教育提高就业能力，获得工作后减少重复犯罪。',sources:[{name:'重复来源',page:6}]}];
+test('retrieval isolates Chinese and English, merges repeated passages with provenance',()=>{const r=retrieve(refs,'教育提高就业能力','logic');assert.equal(r.length,1);assert.equal(r[0].sources.length,2);assert.equal(retrieve(refs,'教育提高就业能力','english')[0].id,'b');});
+test('input bounds and complete logic are required',()=>{assert.ok(validateInput(input));assert.ok(!validateInput({...input,fields:{}}));assert.ok(!validateInput({...input,mode:'english'}));assert.ok(!validateInput({...input,prompt:'x'.repeat(6000)}));});
+test('model instructions distinguish logic questions from English corrections',()=>{const a=buildMessages(input,refs.slice(0,1));assert.match(a[0].content,/suggestion必须为空/);assert.doesNotMatch(a[1].content,/Education improves/);const b=buildMessages({...input,mode:'english',english:'My outline.'},[]);assert.match(b[0].content,/局部修正/);assert.equal(JSON.parse(b[1].content).english,'My outline.');});
+test('optional full-essay interface checks user text without writing a replacement',()=>{const essay={...input,mode:'essay',essay:'My optional original essay.'};assert.ok(validateInput(essay));assert.ok(!validateInput({...essay,essay:''}));const messages=buildMessages(essay,[]);assert.match(messages[0].content,/不重写全文/);assert.equal(JSON.parse(messages[1].content).essay,essay.essay);});

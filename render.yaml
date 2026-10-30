@@ -1,0 +1,13 @@
+# Independent preview only; does not alter GitHub Pages or any production service.
+services:
+  - type: web
+    name: ielts-knowledge-preview
+    runtime: docker
+    plan: free
+    autoDeploy: false
+    healthCheckPath: /ielts-knowledge-workspace/
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: COOKIE_SECURE
+        value: "true"

@@ -1,1 +1,38 @@
-{"name":"ielts-knowledge-workspace","private":true,"version":"0.1.0","type":"module","scripts":{"dev":"vite --host 0.0.0.0","build":"tsc -b && vite build","preview":"vite preview --host 0.0.0.0"},"dependencies":{"lucide-react":"^0.577.0","react":"^19.2.4","react-dom":"^19.2.4"},"devDependencies":{"@tailwindcss/vite":"^4.2.1","@types/react":"^19.2.14","@types/react-dom":"^19.2.3","@vitejs/plugin-react":"^6.0.0","tailwindcss":"^4.2.1","typescript":"^5.9.3","vite":"^8.0.0"}}
+{
+  "name": "ielts-knowledge-workspace",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test:reading": "node scripts/reading-model.test.cjs",
+    "test:reading:browser": "node scripts/reading-smoke.cjs",
+    "test:discovery": "node scripts/discovery-model.test.cjs",
+    "test:discovery:browser": "node scripts/discovery-smoke.cjs",
+    "ai:server": "node --use-env-proxy --env-file-if-exists=.env.server server/writing-server.mjs",
+    "test:writing:ai": "node --test scripts/writing-ai.test.mjs",
+    "test:writing:browser": "node scripts/writing-training-smoke.cjs",
+    "test:writing": "node scripts/writing-model.test.cjs",
+    "start": "node --use-env-proxy server/writing-server.mjs",
+    "test:byok": "node --test scripts/byok.test.mjs",
+    "test:byok:browser": "node scripts/byok-browser.cjs"
+  },
+  "dependencies": {
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/silkscreen": "^5.3.0",
+    "lucide-react": "^0.577.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.2.1",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.0",
+    "tailwindcss": "^4.2.1",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.0"
+  }
+}
